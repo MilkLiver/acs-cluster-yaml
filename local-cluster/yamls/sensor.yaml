@@ -1,0 +1,324 @@
+
+
+
+
+
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sensor
+  namespace: stackrox
+  labels:
+    app.kubernetes.io/component: sensor
+    app.kubernetes.io/instance: stackrox-secured-cluster-services
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: stackrox
+    app.kubernetes.io/part-of: stackrox-secured-cluster-services
+    app.kubernetes.io/version: 3.71.0
+    helm.sh/chart: sensor-71.0.0
+    app: sensor
+    auto-upgrade.stackrox.io/component: "sensor"
+  annotations:
+    email: support@stackrox.com
+    meta.helm.sh/release-name: stackrox-secured-cluster-services
+    meta.helm.sh/release-namespace: stackrox
+    owner: stackrox
+spec:
+  replicas: 1
+  minReadySeconds: 15
+  selector:
+    matchLabels:
+      app: sensor
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: sensor
+        app.kubernetes.io/component: sensor
+        app.kubernetes.io/instance: stackrox-secured-cluster-services
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: stackrox
+        app.kubernetes.io/part-of: stackrox-secured-cluster-services
+        app.kubernetes.io/version: 3.71.0
+        helm.sh/chart: sensor-71.0.0
+      annotations:
+        traffic.sidecar.istio.io/excludeInboundPorts: "8443,9443"
+        email: support@stackrox.com
+        meta.helm.sh/release-name: stackrox-secured-cluster-services
+        meta.helm.sh/release-namespace: stackrox
+        owner: stackrox
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            # Sensor is single-homed, so avoid preemptible nodes.
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: cloud.google.com/gke-preemptible
+                    operator: NotIn
+                    values:
+                    - "true"
+            - weight: 50
+              preference:
+                matchExpressions:
+                - key: node-role.kubernetes.io/infra
+                  operator: Exists
+            - weight: 25
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/compute
+                    operator: Exists
+            # From v1.20 node-role.kubernetes.io/control-plane replaces node-role.kubernetes.io/master (removed in
+            # v1.25). We apply both because our goal is not to run pods on control plane nodes for any version of k8s.
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/master
+                    operator: DoesNotExist
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+      securityContext:
+        runAsUser: 4000
+        fsGroup: 4000
+      serviceAccountName: sensor
+      containers:
+      - image: "registry.redhat.io/advanced-cluster-security/rhacs-main-rhel8:3.71.0"
+        imagePullPolicy: IfNotPresent
+        name: sensor
+        readinessProbe:
+          httpGet:
+            scheme: HTTPS
+            path: /ready
+            port: 9443
+        ports:
+          - containerPort: 8443
+            name: api
+          - containerPort: 9443
+            name: webhook
+        command:
+          - kubernetes-sensor
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: "1"
+            memory: 1Gi
+        securityContext:
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+        env:
+        - name: K8S_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: ROX_CENTRAL_ENDPOINT
+          value: central-rhacs-operator.apps.dynasafe-acs.ocpacm.com:443
+        - name: ROX_ADVERTISED_ENDPOINT
+          value: sensor.stackrox.svc:443
+        - name: ROX_OPENSHIFT_API
+          value: "true"
+        
+        - name: "ROX_COMPLIANCE_OPERATOR_INTEGRATION"
+          value: "true"
+        
+        - name: "ROX_CSV_EXPORT"
+          value: "false"
+        
+        - name: "ROX_DECOMMISSIONED_CLUSTER_RETENTION"
+          value: "false"
+        
+        - name: "ROX_ECR_AUTO_INTEGRATION"
+          value: "true"
+        
+        - name: "ROX_ENABLE_ROLLBACK"
+          value: "true"
+        
+        - name: "ROX_FRONTEND_VM_UDPATES"
+          value: "false"
+        
+        - name: "ROX_INTEGRATIONS_AS_CONFIG"
+          value: "false"
+        
+        - name: "ROX_LOCAL_IMAGE_SCANNING"
+          value: "true"
+        
+        - name: "ROX_NETPOL_FIELDS"
+          value: "true"
+        
+        - name: "ROX_NETWORK_DETECTION_BASELINE_SIMULATION"
+          value: "true"
+        
+        - name: "ROX_NEW_POLICY_CATEGORIES"
+          value: "false"
+        
+        - name: "ROX_POLICIES_PATTERNFLY"
+          value: "true"
+        
+        - name: "ROX_POSTGRES_DATASTORE"
+          value: "false"
+        
+        - name: "ROX_SECURITY_METRICS_PHASE_ONE"
+          value: "true"
+        
+        - name: "ROX_SYSTEM_HEALTH_PF"
+          value: "false"
+        
+        - name: "ROX_VERIFY_IMAGE_SIGNATURE"
+          value: "true"
+        
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log/stackrox/
+        - name: sensor-etc-ssl-volume
+          mountPath: /etc/ssl/
+        - name: sensor-etc-pki-volume
+          mountPath: /etc/pki/ca-trust/
+        - name: certs
+          mountPath: /run/secrets/stackrox.io/certs/
+          readOnly: true
+        - name: additional-ca-volume
+          mountPath: /usr/local/share/ca-certificates/
+          readOnly: true
+        - name: cache
+          mountPath: /var/cache/stackrox
+        
+        - name: trusted-ca-volume
+          mountPath: /etc/pki/injected-ca-trust/
+          readOnly: true
+        
+        
+      volumes:
+      - name: certs
+        secret:
+          secretName: sensor-tls
+          items:
+          - key: sensor-cert.pem
+            path: cert.pem
+          - key: sensor-key.pem
+            path: key.pem
+          - key: ca.pem
+            path: ca.pem
+      - name: sensor-etc-ssl-volume
+        emptyDir: {}
+      - name: sensor-etc-pki-volume
+        emptyDir: {}
+      - name: additional-ca-volume
+        secret:
+          secretName: additional-ca-sensor
+          optional: true
+      - name: varlog
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+      
+      - name: trusted-ca-volume
+        configMap:
+          name: injected-cabundle-stackrox-secured-cluster-services
+          items:
+            - key: ca-bundle.crt
+              path: tls-ca-bundle.pem
+          optional: true
+      
+      
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sensor
+  namespace: stackrox
+  labels:
+    app.kubernetes.io/component: sensor
+    app.kubernetes.io/instance: stackrox-secured-cluster-services
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: stackrox
+    app.kubernetes.io/part-of: stackrox-secured-cluster-services
+    app.kubernetes.io/version: 3.71.0
+    helm.sh/chart: sensor-71.0.0
+    auto-upgrade.stackrox.io/component: "sensor"
+  annotations:
+    email: support@stackrox.com
+    meta.helm.sh/release-name: stackrox-secured-cluster-services
+    meta.helm.sh/release-namespace: stackrox
+    owner: stackrox
+spec:
+  ports:
+  - name: https
+    port: 443
+    targetPort: api
+    protocol: TCP
+  selector:
+    app: sensor
+  type: ClusterIP
+  sessionAffinity: None
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: sensor-webhook
+  namespace: stackrox
+  labels:
+    app.kubernetes.io/component: sensor
+    app.kubernetes.io/instance: stackrox-secured-cluster-services
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: stackrox
+    app.kubernetes.io/part-of: stackrox-secured-cluster-services
+    app.kubernetes.io/version: 3.71.0
+    helm.sh/chart: sensor-71.0.0
+    auto-upgrade.stackrox.io/component: "sensor"
+  annotations:
+    email: support@stackrox.com
+    meta.helm.sh/release-name: stackrox-secured-cluster-services
+    meta.helm.sh/release-namespace: stackrox
+    owner: stackrox
+spec:
+  ports:
+  - name: https
+    port: 443
+    targetPort: webhook
+    protocol: TCP
+  selector:
+    app: sensor
+  type: ClusterIP
+  sessionAffinity: None
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: helm-effective-cluster-name
+  namespace: stackrox
+  labels:
+    app.kubernetes.io/component: sensor
+    app.kubernetes.io/instance: stackrox-secured-cluster-services
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: stackrox
+    app.kubernetes.io/part-of: stackrox-secured-cluster-services
+    app.kubernetes.io/version: 3.71.0
+    helm.sh/chart: sensor-71.0.0
+    auto-upgrade.stackrox.io/component: sensor
+  annotations:
+    "helm.sh/hook": "pre-install,pre-upgrade"
+    "helm.sh/resource-policy": "keep"
+    email: support@stackrox.com
+    meta.helm.sh/release-name: stackrox-secured-cluster-services
+    meta.helm.sh/release-namespace: stackrox
+    owner: stackrox
+stringData:
+  cluster-name: |
+    loacl-cluster
