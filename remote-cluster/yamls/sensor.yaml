@@ -131,6 +131,8 @@ spec:
           value: central-rhacs-operator.apps.dynasafe-acs.ocpacm.com:443
         - name: ROX_ADVERTISED_ENDPOINT
           value: sensor.stackrox.svc:443
+        - name: ROX_OPENSHIFT_API
+          value: "true"
         
         - name: "ROX_COMPLIANCE_OPERATOR_INTEGRATION"
           value: "true"
@@ -196,6 +198,10 @@ spec:
         - name: cache
           mountPath: /var/cache/stackrox
         
+        - name: trusted-ca-volume
+          mountPath: /etc/pki/injected-ca-trust/
+          readOnly: true
+        
         
       volumes:
       - name: certs
@@ -220,6 +226,14 @@ spec:
         emptyDir: {}
       - name: cache
         emptyDir: {}
+      
+      - name: trusted-ca-volume
+        configMap:
+          name: injected-cabundle-stackrox-secured-cluster-services
+          items:
+            - key: ca-bundle.crt
+              path: tls-ca-bundle.pem
+          optional: true
       
       
 ---

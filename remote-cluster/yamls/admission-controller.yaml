@@ -178,6 +178,10 @@ spec:
               mountPath: /usr/local/share/ca-certificates/
               readOnly: true
             
+            - name: trusted-ca-volume
+              mountPath: /etc/pki/injected-ca-trust/
+              readOnly: true
+            
             
       volumes:
         - name: certs
@@ -208,6 +212,14 @@ spec:
         - name: additional-cas
           secret:
             secretName: additional-ca-sensor
+            optional: true
+        
+        - name: trusted-ca-volume
+          configMap:
+            name: injected-cabundle-stackrox-secured-cluster-services
+            items:
+              - key: ca-bundle.crt
+                path: tls-ca-bundle.pem
             optional: true
         
         
@@ -283,6 +295,7 @@ webhooks:
           - daemonsets
           - cronjobs
           - jobs
+          - deploymentconfigs
     namespaceSelector:
       matchExpressions:
       - key: namespace.metadata.stackrox.io/name
