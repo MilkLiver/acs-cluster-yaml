@@ -1,0 +1,41 @@
+
+
+
+
+
+
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: service-ca
+  namespace: stackrox
+  labels:
+    app.kubernetes.io/instance: stackrox-secured-cluster-services
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: stackrox
+    app.kubernetes.io/part-of: stackrox-secured-cluster-services
+    app.kubernetes.io/version: 3.71.0
+    helm.sh/chart: sensor-71.0.0
+    auto-upgrade.stackrox.io/component: sensor
+  annotations:
+    email: support@stackrox.com
+    meta.helm.sh/release-name: stackrox-secured-cluster-services
+    meta.helm.sh/release-namespace: stackrox
+    owner: stackrox
+type: Opaque
+stringData:
+  ca.pem: |
+    -----BEGIN CERTIFICATE-----
+    MIIB0zCCAXqgAwIBAgIUTWZDzGteHfypvw//ETMLoA6JMNkwCgYIKoZIzj0EAwIw
+    SDEnMCUGA1UEAxMeU3RhY2tSb3ggQ2VydGlmaWNhdGUgQXV0aG9yaXR5MR0wGwYD
+    VQQFExQxNzAzMDA3Mzc1ODE4OTE2NDYwNDAeFw0yMjA4MTEwMTEzMDBaFw0yNzA4
+    MTAwMTEzMDBaMEgxJzAlBgNVBAMTHlN0YWNrUm94IENlcnRpZmljYXRlIEF1dGhv
+    cml0eTEdMBsGA1UEBRMUMTcwMzAwNzM3NTgxODkxNjQ2MDQwWTATBgcqhkjOPQIB
+    BggqhkjOPQMBBwNCAAQ5/RRzozwS+RazzqD9oVxUW7/72HKJlCVU+S787oxPoBea
+    XrWyvaZwFyLvzCjr+LTJhEMFtSJmPbPMOM1KHgHAo0IwQDAOBgNVHQ8BAf8EBAMC
+    AQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUWzswzWircLRrXDkvRq3df3xu
+    Kt8wCgYIKoZIzj0EAwIDRwAwRAIgHXzkjgbccM8aX4uldyEMjqJyTT54ofAzaTOv
+    Sr/0aJgCIGxrmaK7QQ1N5Tz3tHH5UmseVhHbMm4HSSxR10fcAMWs
+    -----END CERTIFICATE-----
+    
